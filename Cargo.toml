@@ -3,6 +3,7 @@ name = "ffi_reflect_csharp"
 authors = ["Danil Gulin <d.nk.gulin@gmail.com>"]
 description = "C# code generator for the `ffi_reflect` package"
 version = "1.0.0"
+license = "MIT"
 edition = "2021"
 
 [dependencies]
