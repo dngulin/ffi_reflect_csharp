@@ -1,0 +1,10 @@
+[package]
+name = "ffi_reflect_csharp"
+authors = ["Danil Gulin <d.nk.gulin@gmail.com>"]
+description = "C# code generator for the `ffi_reflect` package"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+ffi_reflect = "1.0.1"
+convert_case = "0.6.0"
