@@ -1,3 +1,15 @@
+//! This crate provides a C# code generator for the `ffi_reflect` crate.
+//! The code generator is implemented as a function that takes a root types definitions
+//! and writes C# code into the `std::io::Write`.
+//! For details see the function description.
+//!
+//! Note that array implementation is not absolutely safe due to C# limitations.
+//! Be careful with references to array items,
+//! because it is possible to create a dangling reference.
+//!
+//! Also, if you want to disable array bounds checking in the generated code,
+//! define the `FFI_REFLECT_NO_BOUNDS_CHECK`.
+
 use convert_case::{Case, Casing};
 use ffi_reflect::{FfiArray, FfiEnum, FfiEnumUnderlyingType, FfiPrimitive, FfiStruct, FfiType};
 use std::collections::VecDeque;
@@ -6,43 +18,46 @@ use std::io;
 use std::io::Write;
 use std::mem::{align_of, size_of};
 
-const I1: &str = "    ";
-const I2: &str = "        ";
-const I3: &str = "            ";
-
 /// Write C# code required to represent given `root_types`.
 ///
 /// # Example
-/// ```
+/// ```no_run
 /// use std::collections::HashMap;
+/// use std::fs::File;
+/// use std::io::BufWriter;
 /// use ffi_reflect::FfiReflect;
 ///
 /// #[derive(FfiReflect)]
 /// #[repr(C)]
-/// struct RootStruct {
-///     pub child_a: ChildStruct,
-///     pub child_b: ChildStruct,
+/// struct World {
+///     pub monsters: [Monster; 5],
 /// }
 ///
 /// #[derive(FfiReflect)]
 /// #[repr(C)]
-/// struct ChildStruct {
-///     pub variant: SampleEnum,
-///     pub value: u32,
+/// struct Monster {
+///     pub position: MyVector,
+///     pub hit_points: f32,
+///     pub state: MonsterState,
+/// }
+///
+/// #[derive(FfiReflect)]
+/// #[repr(C)]
+/// struct MyVector {
+///     pub x: f32,
+///     pub y: f32,
 /// }
 ///
 /// #[derive(FfiReflect)]
 /// #[repr(u8)]
-/// enum SampleEnum { A = 0, B = 1, C = 2, }
+/// enum MonsterState { Idle = 0, Walking = 1 }
 ///
-/// let mut writer = Vec::with_capacity(1024);
-/// ffi_reflect_csharp::write_types(&mut writer, &[RootStruct::ffi_reflect()], "Sample.NameSpace", &[], &HashMap::new()).unwrap();
-///
-/// let text = std::str::from_utf8(&writer).unwrap();
-///
-/// assert!(text.contains("[StructLayout(LayoutKind.Sequential)]"));
-/// assert!(text.contains("public struct RootStruct"));
-/// assert!(text.contains("public ChildStruct ChildA;"));
+/// let mut writer = BufWriter::new(File::create("World.g.cs").unwrap());
+/// let root_types = &[World::ffi_reflect()];
+/// let namespace = "Sample.NameSpace";
+/// let usings = &["UnityEngine"];
+/// let type_mapping: HashMap<&str,&str> = HashMap::from([("MyVector", "Vector2")]);
+/// ffi_reflect_csharp::write_types(&mut writer, root_types, namespace, usings, &type_mapping).unwrap();
 /// ```
 pub fn write_types<W: Write>(
     writer: &mut W,
@@ -84,6 +99,10 @@ pub fn write_types<W: Write>(
 
     Ok(())
 }
+
+const I1: &str = "    ";
+const I2: &str = "        ";
+const I3: &str = "            ";
 
 fn write_recursive<W: Write>(
     ffi_type: &'static FfiType,
@@ -238,7 +257,7 @@ fn write_indexer<W: Write>(
     write!(w, "{}public static {} {} {}", I2, mod_ret, t_item, method)?;
     writeln!(w, "({} this {} a, int i) {{", mod_arg, t)?;
 
-    writeln!(w, "#if !FFI_REFLECT_FAST_INDEXERS")?;
+    writeln!(w, "#if !FFI_REFLECT_NO_BOUNDS_CHECK")?;
     writeln!(
         w,
         "{}if (i < 0 || i >= {}.Length) throw new IndexOutOfRangeException();",
